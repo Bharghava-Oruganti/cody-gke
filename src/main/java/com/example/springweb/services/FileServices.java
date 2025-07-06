@@ -14,8 +14,9 @@ import java.util.Scanner;
 
 @Service
 public class FileServices{
-    private final String filesPath = "src/main/java/com/example/springweb/files/"; // Relative path from the working directory
+    //  private final String filesPath = "src/main/java/com/example/springweb/files/"; // Relative path from the working directory
 //    private final String filesPath = "C:\\Users\\BHARGHAVA\\Desktop\\springweb\\src\\main\\java\\com\\example\\springweb\\files";
+    private final String filesPath = "./files/";
     public void createFile(String fileName, String content) throws IOException {
         Path tempFilePath = Paths.get(filesPath, fileName + ".tmp");
         Path finalFilePath = Paths.get(filesPath, fileName);

@@ -22,10 +22,11 @@ public class DockerService {
     private DockerClient dockerClient;
    // private String local_path = "/home/claws6206/cody/backend/src/main/java/com/example/springweb/files";
 //     private String local_path = "/app/files";
-    private String local_path = "C:\\Users\\BHARGHAVA\\Desktop\\springweb\\src\\main\\java\\com\\example\\springweb\\files";
+  //  private String local_path = "C:\\Users\\BHARGHAVA\\Desktop\\springweb\\src\\main\\java\\com\\example\\springweb\\files";
+    private String local_path = "/home/claws6206/cody/backend/files";
     Path filePath = Paths.get(local_path, "");
 
-    private String container_path = "/files/";
+    private String container_path = "/files";
     Volume volume = new Volume(container_path);
     Volume volume2 = new Volume(local_path);
     public String createContainer(){
@@ -46,9 +47,9 @@ public class DockerService {
                     .anyMatch(tag -> tag.equals("angryclawz/cpp_comp_image:latest"));
 
             List<Image> imageList = dockerClient.listImagesCmd().exec();
-            for(Image img : imageList){
-                System.out.println(img);
-            }
+//            for(Image img : imageList){
+//                System.out.println(img);
+//            }
 //            DockerClient dockerClient2 = DockerClientBuilder.getInstance().build();
             System.out.println(imageExists);
             if(!imageExists){
