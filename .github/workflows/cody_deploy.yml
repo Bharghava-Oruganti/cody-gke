@@ -45,15 +45,15 @@ jobs:
           source: "deploy_package.tar.gz"
           target: "/home/${{ secrets.VM_USER }}/"
 
-#      - name: Extract and deploy on VM
-#        uses: appleboy/ssh-action@v1.0.0
-#        with:
-#          host: ${{ secrets.VM_HOST }}
-#          username: ${{ secrets.VM_USER }}
-#          key: ${{ secrets.VM_SSH_KEY }}
-#          script: |
-#            cd /home/${{ secrets.VM_USER }}
-#            tar -xzf deploy_package.tar.gz
-#            cd cody
-#            docker compose down
-#            docker compose up -d --build
+      - name: Extract and deploy on VM
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          script: |
+            cd /home/${{ secrets.VM_USER }}
+            tar -xzf deploy_package.tar.gz
+            cd cody
+            docker compose down --volumes
+            docker compose up -d --build
