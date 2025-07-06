@@ -1,6 +1,6 @@
-name : CICD Deploy
+name: CICD Deploy
 
-on :
+on:
   push:
     branches:
       - main
@@ -8,32 +8,32 @@ on :
 
 jobs:
   deploy:
-    runs-on : ubuntu-latest
+    runs-on: ubuntu-latest
+
     steps:
-      - name : Checkout code main
+      - name: Checkout code main
         if: github.ref == 'refs/heads/main'
-        uses : actions/checkout/@v4
+        uses: actions/checkout@v4
         with:
-          ref : main
-          path : backend
+          ref: main
+          path: backend
 
-      - name : Checkout code frontend
+      - name: Checkout code frontend
         if: github.ref == 'refs/heads/frontend'
-        uses : actions/checkout/@v4
+        uses: actions/checkout@v4
         with:
-          ref : frontend
-          path : frontend
+          ref: frontend
+          path: frontend
 
-
-      - name : Prepare deployment package
-        run : |
-          mkdir -p cody
+      - name: Prepare deployment package
+        run: |
+          mkdir -p cody/backend
           if [ -d backend ]; then
             cp -r backend/src cody/backend/src
-            cp -r backend/pom.xml cody/backend
-            cp -r backend/Dockerfile cody/backend
-            cp -r backend/docker-compose.yml cody
-          fi 
+            cp backend/pom.xml cody/backend/
+            cp backend/Dockerfile cody/backend/
+            cp backend/docker-compose.yml cody/
+          fi
           tar -czf deploy_package.tar.gz -C cody .
 
       - name: Copy tar to VM via SSH
@@ -45,12 +45,15 @@ jobs:
           source: "deploy_package.tar.gz"
           target: "/home/${{ secrets.VM_USER }}/"
 
-      - name: Extract and deploy on VM
-        uses: appleboy/ssh-action@v1.0.0
-        with:
-          host: ${{ secrets.VM_HOST }}
-          username: ${{ secrets.VM_USER }}
-          key: ${{ secrets.VM_SSH_KEY }}
-          script: |
-            cd /home/${{ secrets.VM_USER }}
-            tar -xzf deploy_package.tar.gz
+#      - name: Extract and deploy on VM
+#        uses: appleboy/ssh-action@v1.0.0
+#        with:
+#          host: ${{ secrets.VM_HOST }}
+#          username: ${{ secrets.VM_USER }}
+#          key: ${{ secrets.VM_SSH_KEY }}
+#          script: |
+#            cd /home/${{ secrets.VM_USER }}
+#            tar -xzf deploy_package.tar.gz
+#            cd cody
+#            docker compose down
+#            docker compose up -d --build
