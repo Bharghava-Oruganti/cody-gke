@@ -1,0 +1,5 @@
+spring:
+  data:
+    mongodb:
+      uri : mongodb+srv://angryclawz:bharghav@cluster0.1tiuhsj.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
+      database: EditorProject
