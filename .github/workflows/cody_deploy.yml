@@ -30,7 +30,7 @@ jobs:
           mkdir -p cody
 
           if [ -d backend ]; then
-            echo "Preparing backend..."
+            echo "✅ Preparing backend..."
             mkdir -p cody/backend
             [ -d backend/src ] && cp -r backend/src cody/backend/
             [ -f backend/pom.xml ] && cp backend/pom.xml cody/backend/
@@ -39,7 +39,7 @@ jobs:
           fi
 
           if [ -d frontend ]; then
-            echo "Preparing frontend..."
+            echo "✅ Preparing frontend..."
             mkdir -p cody/frontend
             [ -d frontend/src ] && cp -r frontend/src cody/frontend/
             [ -d frontend/public ] && cp -r frontend/public cody/frontend/
@@ -51,12 +51,12 @@ jobs:
             [ -f frontend/vite.config.js ] && cp frontend/vite.config.js cody/frontend/
           fi
 
-          echo "Creating tarball..."
+          echo "📦 Creating tarball..."
           tar -czf deploy_package.tar.gz -C cody .
 
-      - name: List tar contents (for debug)
+      - name: List contents of tarball (debug)
         run: |
-          echo "Tarball contents:"
+          echo "📦 Tarball contents:"
           tar -tzf deploy_package.tar.gz
 
       - name: Copy tar to VM via SSH
@@ -77,16 +77,16 @@ jobs:
           script: |
             cd /home/${{ secrets.VM_USER }}
 
-            echo "Stopping existing Docker containers..."
+            echo "🛑 Stopping existing Docker containers..."
             if [ -f cody/docker-compose.yml ]; then
               docker compose -f cody/docker-compose.yml down --volumes
             fi
 
-            echo "Extracting tarball..."
+            echo "📦 Extracting tarball..."
             mkdir -p tmp
             tar -xzf deploy_package.tar.gz -C tmp
 
-            echo "Backing up current code..."
+            echo "🗂 Backing up current code..."
             mkdir -p backup
             if [ -d cody/backend ]; then
               mv cody/backend backup/backend_$(date +%s)
@@ -95,20 +95,31 @@ jobs:
               mv cody/frontend backup/frontend_$(date +%s)
             fi
 
-            echo "Replacing with new code..."
+            echo "🚚 Replacing with new code..."
             if [ -d tmp/backend ]; then
               mv tmp/backend cody/
-            fi
-            if [ -d tmp/frontend ]; then
-              mv tmp/frontend cody/
-            fi
-            if [ -f tmp/docker-compose.yml ]; then
-              mv tmp/docker-compose.yml cody/
+            else
+              echo "❌ ERROR: tmp/backend missing!"
             fi
 
-            echo "Cleaning up..."
+            if [ -d tmp/frontend ]; then
+              mv tmp/frontend cody/
+            else
+              echo "❌ ERROR: tmp/frontend missing!"
+              echo "📁 tmp contents:"
+              ls -la tmp
+              exit 1
+            fi
+
+            if [ -f tmp/docker-compose.yml ]; then
+              mv tmp/docker-compose.yml cody/
+            else
+              echo "⚠️ WARNING: docker-compose.yml missing in tmp!"
+            fi
+
+            echo "🧹 Cleaning up..."
             rm -rf tmp
             rm -f deploy_package.tar.gz
 
-            echo "Starting Docker containers..."
+            echo "🚀 Starting Docker containers..."
             docker compose -f cody/docker-compose.yml up -d --build
