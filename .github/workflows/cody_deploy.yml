@@ -11,14 +11,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code main
+      - name: Checkout backend (main)
         if: github.ref == 'refs/heads/main'
         uses: actions/checkout@v4
         with:
           ref: main
           path: backend
 
-      - name: Checkout code frontend
+      - name: Checkout frontend (frontend)
         if: github.ref == 'refs/heads/frontend'
         uses: actions/checkout@v4
         with:
@@ -29,12 +29,14 @@ jobs:
         run: |
           mkdir -p cody/backend
           mkdir -p cody/frontend
+
           if [ -d backend ]; then
             cp -r backend/src cody/backend/src
             cp backend/pom.xml cody/backend/
             cp backend/Dockerfile cody/backend/
             cp backend/docker-compose.yml cody/
           fi
+
           if [ -d frontend ]; then
             cp -r frontend/src cody/frontend/src
             cp -r frontend/public cody/frontend/public
@@ -45,8 +47,8 @@ jobs:
             cp frontend/package-lock.json cody/frontend/
             cp frontend/vite.config.js cody/frontend/
           fi
-          tar -czf deploy_package.tar.gz -C cody .
 
+          tar -czf deploy_package.tar.gz -C cody .
 
       - name: Copy tar to VM via SSH
         uses: appleboy/scp-action@v0.1.7
@@ -63,26 +65,41 @@ jobs:
           host: ${{ secrets.VM_HOST }}
           username: ${{ secrets.VM_USER }}
           key: ${{ secrets.VM_SSH_KEY }}
-          script: |  
+          script: |
             cd /home/${{ secrets.VM_USER }}
-            
+
+            # Stop running containers if compose file exists
             if [ -f cody/docker-compose.yml ]; then
               docker compose -f cody/docker-compose.yml down --volumes
             fi
-                    
+
+            # Extract the deployment package
             mkdir -p tmp
             tar -xzf deploy_package.tar.gz -C tmp
-#            cd cody
+
+            # Backup existing backend/frontend folders if they exist
             mkdir -p backup
-            mv cody/backend backup/
-            mv cody/frontend backup/
-                    
-            rm -rf cody/backend
-            rm -rf cody/frontend
-            
-            mv tmp/docker-compose.yml cody/
-            
+            if [ -d cody/backend ]; then
+              mv cody/backend backup/backend_$(date +%s)
+            fi
+            if [ -d cody/frontend ]; then
+              mv cody/frontend backup/frontend_$(date +%s)
+            fi
+
+            # Move new folders into cody/
+            if [ -d tmp/backend ]; then
+              mv tmp/backend cody/
+            fi
+            if [ -d tmp/frontend ]; then
+              mv tmp/frontend cody/
+            fi
+            if [ -f tmp/docker-compose.yml ]; then
+              mv tmp/docker-compose.yml cody/
+            fi
+
+            # Clean up
             rm -rf tmp
             rm -f deploy_package.tar.gz
-                    
+
+            # Rebuild and start containers
             docker compose -f cody/docker-compose.yml up -d --build
