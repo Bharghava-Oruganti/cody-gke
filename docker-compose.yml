@@ -18,6 +18,9 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./backend/src:/src
+      - ./backend/src/main/java/com/example/springweb/files:/files
+    ports:
+      - "8080:8080"
 
   frontend:
     build: ./frontend

@@ -23,7 +23,7 @@ public class DockerService {
    // private String local_path = "/home/claws6206/cody/backend/src/main/java/com/example/springweb/files";
 //     private String local_path = "/app/files";
   //  private String local_path = "C:\\Users\\BHARGHAVA\\Desktop\\springweb\\src\\main\\java\\com\\example\\springweb\\files";
-    private String local_path = "/home/claws6206/cody/backend/files";
+    private String local_path = "/home/claws6206/cody/backend/src/main/java/com/example/springweb/files";
     Path filePath = Paths.get(local_path, "");
 
     private String container_path = "/files";
@@ -46,7 +46,7 @@ public class DockerService {
                             java.util.stream.Stream.empty())
                     .anyMatch(tag -> tag.equals("angryclawz/cpp_comp_image:latest"));
 
-            List<Image> imageList = dockerClient.listImagesCmd().exec();
+//            List<Image> imageList = dockerClient.listImagesCmd().exec();
 //            for(Image img : imageList){
 //                System.out.println(img);
 //            }
