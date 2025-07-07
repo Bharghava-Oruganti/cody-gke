@@ -34,14 +34,6 @@ jobs:
             cp backend/pom.xml cody/backend/
             cp backend/Dockerfile cody/backend/
             cp backend/docker-compose.yml cody/
-            cp -r frontend/src cody/frontend/src
-            cp -r frontend/public cody/frontend/public
-            cp frontend/Dockerfile cody/frontend/
-            cp frontend/index.html cody/frontend/
-            cp frontend/install-theme.sh cody/frontend/
-            cp frontend/package.json cody/frontend/
-            cp frontend/package-lock.json cody/frontend/
-            cp frontend/vite.config.js cody/frontend/
           fi
           if [ -d frontend ]; then
             cp -r frontend/src cody/frontend/src
@@ -54,6 +46,7 @@ jobs:
             cp frontend/vite.config.js cody/frontend/
           fi
           tar -czf deploy_package.tar.gz -C cody .
+
       - name: Copy tar to VM via SSH
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -72,6 +65,20 @@ jobs:
           script: |
             cd /home/${{ secrets.VM_USER }}
             tar -xzf deploy_package.tar.gz -C tmp
+            
+            if [ -d backend ]; then
+              docker compose -f cody/docker-compose.yml down backend --volumes
+              rm -f cody/docker-compose.yml
+              rm -rf cody/backend
+              mv tmp/backend cody/
+              mv tmp/docker-compose.yml cody/
+            fi
+            if [ -d frontend ]; then
+              rm -rf cody/frontend
+              mv tmp/frontend cody/
+            fi
+            
+            docker compose -f cody/docker-compose.yml up -d --build
 #            cd cody
 #            docker compose down --volumes
 #            docker compose up -d --build
