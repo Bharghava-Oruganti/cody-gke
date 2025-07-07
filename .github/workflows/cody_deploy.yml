@@ -27,28 +27,37 @@ jobs:
 
       - name: Prepare deployment package
         run: |
-          mkdir -p cody/backend
-          mkdir -p cody/frontend
+          mkdir -p cody
 
           if [ -d backend ]; then
-            cp -r backend/src cody/backend/src
-            cp backend/pom.xml cody/backend/
-            cp backend/Dockerfile cody/backend/
-            cp backend/docker-compose.yml cody/
+            echo "Preparing backend..."
+            mkdir -p cody/backend
+            [ -d backend/src ] && cp -r backend/src cody/backend/
+            [ -f backend/pom.xml ] && cp backend/pom.xml cody/backend/
+            [ -f backend/Dockerfile ] && cp backend/Dockerfile cody/backend/
+            [ -f backend/docker-compose.yml ] && cp backend/docker-compose.yml cody/
           fi
 
           if [ -d frontend ]; then
-            cp -r frontend/src cody/frontend/src
-            cp -r frontend/public cody/frontend/public
-            cp frontend/Dockerfile cody/frontend/
-            cp frontend/index.html cody/frontend/
-            cp frontend/install-theme.sh cody/frontend/
-            cp frontend/package.json cody/frontend/
-            cp frontend/package-lock.json cody/frontend/
-            cp frontend/vite.config.js cody/frontend/
+            echo "Preparing frontend..."
+            mkdir -p cody/frontend
+            [ -d frontend/src ] && cp -r frontend/src cody/frontend/
+            [ -d frontend/public ] && cp -r frontend/public cody/frontend/
+            [ -f frontend/Dockerfile ] && cp frontend/Dockerfile cody/frontend/
+            [ -f frontend/index.html ] && cp frontend/index.html cody/frontend/
+            [ -f frontend/install-theme.sh ] && cp frontend/install-theme.sh cody/frontend/
+            [ -f frontend/package.json ] && cp frontend/package.json cody/frontend/
+            [ -f frontend/package-lock.json ] && cp frontend/package-lock.json cody/frontend/
+            [ -f frontend/vite.config.js ] && cp frontend/vite.config.js cody/frontend/
           fi
 
+          echo "Creating tarball..."
           tar -czf deploy_package.tar.gz -C cody .
+
+      - name: List tar contents (for debug)
+        run: |
+          echo "Tarball contents:"
+          tar -tzf deploy_package.tar.gz
 
       - name: Copy tar to VM via SSH
         uses: appleboy/scp-action@v0.1.7
@@ -68,16 +77,16 @@ jobs:
           script: |
             cd /home/${{ secrets.VM_USER }}
 
-            # Stop running containers if compose file exists
+            echo "Stopping existing Docker containers..."
             if [ -f cody/docker-compose.yml ]; then
               docker compose -f cody/docker-compose.yml down --volumes
             fi
 
-            # Extract the deployment package
+            echo "Extracting tarball..."
             mkdir -p tmp
             tar -xzf deploy_package.tar.gz -C tmp
 
-            # Backup existing backend/frontend folders if they exist
+            echo "Backing up current code..."
             mkdir -p backup
             if [ -d cody/backend ]; then
               mv cody/backend backup/backend_$(date +%s)
@@ -86,7 +95,7 @@ jobs:
               mv cody/frontend backup/frontend_$(date +%s)
             fi
 
-            # Move new folders into cody/
+            echo "Replacing with new code..."
             if [ -d tmp/backend ]; then
               mv tmp/backend cody/
             fi
@@ -97,9 +106,9 @@ jobs:
               mv tmp/docker-compose.yml cody/
             fi
 
-            # Clean up
+            echo "Cleaning up..."
             rm -rf tmp
             rm -f deploy_package.tar.gz
 
-            # Rebuild and start containers
+            echo "Starting Docker containers..."
             docker compose -f cody/docker-compose.yml up -d --build
