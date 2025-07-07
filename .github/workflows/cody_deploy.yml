@@ -63,9 +63,26 @@ jobs:
           host: ${{ secrets.VM_HOST }}
           username: ${{ secrets.VM_USER }}
           key: ${{ secrets.VM_SSH_KEY }}
-          script: |
+          script: |  
             cd /home/${{ secrets.VM_USER }}
-            tar -xzf deploy_package.tar.gz
-            cd cody
-            docker compose down --volumes
-            docker compose up -d --build
+            
+            if [ -f cody/docker-compose.yml ]; then
+              docker compose -f cody/docker-compose.yml down --volumes
+            fi
+                    
+            mkdir -p tmp
+            tar -xzf deploy_package.tar.gz -C tmp
+#            cd cody
+            mkdir -p backup
+            mv cody/backend backup/
+            mv cody/frontend backup/
+                    
+            rm -rf cody/backend
+            rm -rf cody/frontend
+            
+            mv tmp/docker-compose.yml cody/
+            
+            rm -rf tmp
+            rm -f deploy_package.tar.gz
+                    
+            docker compose -f cody/docker-compose.yml up -d --build
