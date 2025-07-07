@@ -11,14 +11,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout backend (main)
+      - name: Checkout code main
         if: github.ref == 'refs/heads/main'
         uses: actions/checkout@v4
         with:
           ref: main
           path: backend
 
-      - name: Checkout frontend (frontend)
+      - name: Checkout code frontend
         if: github.ref == 'refs/heads/frontend'
         uses: actions/checkout@v4
         with:
@@ -27,38 +27,25 @@ jobs:
 
       - name: Prepare deployment package
         run: |
-          mkdir -p cody
-
+          mkdir -p cody/backend
+          mkdir -p cody/frontend
           if [ -d backend ]; then
-            echo "✅ Preparing backend..."
-            mkdir -p cody/backend
-            [ -d backend/src ] && cp -r backend/src cody/backend/
-            [ -f backend/pom.xml ] && cp backend/pom.xml cody/backend/
-            [ -f backend/Dockerfile ] && cp backend/Dockerfile cody/backend/
-            [ -f backend/docker-compose.yml ] && cp backend/docker-compose.yml cody/
+            cp -r backend/src cody/backend/src
+            cp backend/pom.xml cody/backend/
+            cp backend/Dockerfile cody/backend/
+            cp backend/docker-compose.yml cody/
           fi
-
           if [ -d frontend ]; then
-            echo "✅ Preparing frontend..."
-            mkdir -p cody/frontend
-            [ -d frontend/src ] && cp -r frontend/src cody/frontend/
-            [ -d frontend/public ] && cp -r frontend/public cody/frontend/
-            [ -f frontend/Dockerfile ] && cp frontend/Dockerfile cody/frontend/
-            [ -f frontend/index.html ] && cp frontend/index.html cody/frontend/
-            [ -f frontend/install-theme.sh ] && cp frontend/install-theme.sh cody/frontend/
-            [ -f frontend/package.json ] && cp frontend/package.json cody/frontend/
-            [ -f frontend/package-lock.json ] && cp frontend/package-lock.json cody/frontend/
-            [ -f frontend/vite.config.js ] && cp frontend/vite.config.js cody/frontend/
+            cp -r frontend/src cody/frontend/src
+            cp -r frontend/public cody/frontend/public
+            cp frontend/Dockerfile cody/frontend/
+            cp frontend/index.html cody/frontend/
+            cp frontend/install-theme.sh cody/frontend/
+            cp frontend/package.json cody/frontend/
+            cp frontend/package-lock.json cody/frontend/
+            cp frontend/vite.config.js cody/frontend/
           fi
-
-          echo "📦 Creating tarball..."
           tar -czf deploy_package.tar.gz -C cody .
-
-      - name: List contents of tarball (debug)
-        run: |
-          echo "📦 Tarball contents:"
-          tar -tzf deploy_package.tar.gz
-
       - name: Copy tar to VM via SSH
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -76,50 +63,7 @@ jobs:
           key: ${{ secrets.VM_SSH_KEY }}
           script: |
             cd /home/${{ secrets.VM_USER }}
-
-            echo "🛑 Stopping existing Docker containers..."
-            if [ -f cody/docker-compose.yml ]; then
-              docker compose -f cody/docker-compose.yml down --volumes
-            fi
-
-            echo "📦 Extracting tarball..."
-            mkdir -p tmp
             tar -xzf deploy_package.tar.gz -C tmp
-
-            echo "🗂 Backing up current code..."
-            mkdir -p backup
-            if [ -d cody/backend ]; then
-              mv cody/backend backup/backend_$(date +%s)
-            fi
-            if [ -d cody/frontend ]; then
-              mv cody/frontend backup/frontend_$(date +%s)
-            fi
-
-            echo "🚚 Replacing with new code..."
-            if [ -d tmp/backend ]; then
-              mv tmp/backend cody/
-            else
-              echo "❌ ERROR: tmp/backend missing!"
-            fi
-
-            if [ -d tmp/frontend ]; then
-              mv tmp/frontend cody/
-            else
-              echo "❌ ERROR: tmp/frontend missing!"
-              echo "📁 tmp contents:"
-              ls -la tmp
-              exit 1
-            fi
-
-            if [ -f tmp/docker-compose.yml ]; then
-              mv tmp/docker-compose.yml cody/
-            else
-              echo "⚠️ WARNING: docker-compose.yml missing in tmp!"
-            fi
-
-            echo "🧹 Cleaning up..."
-            rm -rf tmp
-            rm -f deploy_package.tar.gz
-
-            echo "🚀 Starting Docker containers..."
-            docker compose -f cody/docker-compose.yml up -d --build
+#            cd cody
+#            docker compose down --volumes
+#            docker compose up -d --build
