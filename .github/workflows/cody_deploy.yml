@@ -27,15 +27,15 @@ jobs:
 
       - name: Prepare deployment package
         run: |
-          mkdir -p cody/backend
-          mkdir -p cody/frontend
           if [ -d backend ]; then
+            mkdir -p cody/backend
             cp -r backend/src cody/backend/src
             cp backend/pom.xml cody/backend/
             cp backend/Dockerfile cody/backend/
             cp backend/docker-compose.yml cody/
           fi
           if [ -d frontend ]; then
+            mkdir -p cody/frontend
             cp -r frontend/src cody/frontend/src
             cp -r frontend/public cody/frontend/public
             cp frontend/Dockerfile cody/frontend/
@@ -64,11 +64,16 @@ jobs:
           key: ${{ secrets.VM_SSH_KEY }}
           script: |
             cd /home/${{ secrets.VM_USER }}
+            mkdir -p tmp
             tar -xzf deploy_package.tar.gz -C tmp
             
-            if [ -d backend ]; then
-              docker compose -f cody/docker-compose.yml down backend --volumes
-              rm -f cody/docker-compose.yml
+            if [ -f cody/docker-compose.yml ]; then
+              docker compose -f cody/docker-compose.yml down --volumes
+            fi 
+            
+            rm -f cody/docker-compose.yml
+            
+            if [ -d tmp/backend ]; then
               rm -rf cody/backend
               mv tmp/backend cody/
               mv tmp/docker-compose.yml cody/
