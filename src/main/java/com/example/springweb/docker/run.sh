@@ -1,65 +1,82 @@
 #!/bin/sh
 
-# exectable
 echo "Hello World Pls Like ME : )"
-verdict_path="./files/verdict.txt"
-output_path="./sandbox/output.txt"
-compare_path="./files/compare.txt"
-expected_output_path="./files/exp_output.txt"
 
-truncate -s 0 $verdict_path $compare_path
+FILES="/files"
+SANDBOX="/sandbox"
 
-mkdir sandbox
-cp ./files/code.cpp ./sandbox/code.cpp
-cp ./files/input.txt ./sandbox/input.txt
+VERDICT="$FILES/verdict.txt"
+EXPECTED="$FILES/exp_output.txt"
+COMPARE="$FILES/compare.txt"
+REAL_OUTPUT="$FILES/real_output.txt"
 
-# create secret key
-SECRET_KEY=$(tr -dc '[:alnum:]' < /dev/urandom | head -c 10)
+# Clean previous files
+mkdir -p "$FILES"
+rm -f "$VERDICT" "$COMPARE" "$REAL_OUTPUT"
 
-chown root ./files
-chmod 700 -R ./files
+# Create sandbox
+rm -rf "$SANDBOX"
+mkdir -p "$SANDBOX"
 
-adduser -D -h ./sandbox usr1
+# Copy source and input
+cp "$FILES/code.cpp" "$SANDBOX/code.cpp"
+cp "$FILES/input.txt" "$SANDBOX/input.txt"
 
-# compilation command
-g++ -o ./sandbox/code.out ./sandbox/code.cpp
+# Protect files
+chmod 700 "$FILES"
+
+# Create restricted user with an absolute home directory
+adduser -D -h "$SANDBOX" usr1
+
+# Compile
+g++ -o "$SANDBOX/code.out" "$SANDBOX/code.cpp"
 stat=$?
 
-chown -R usr1:usr1 ./sandbox
-chmod 700 -R ./sandbox
-
-if [ $stat -eq 1 ]; then
-    echo "Compilation Error" >> $verdict_path
-    chown -R usr1:usr1 ./files
+# Compilation error
+if [ $stat -ne 0 ]; then
+    echo "Compilation Error" > "$VERDICT"
+    echo "VERDICT: $(cat "$VERDICT")"
     exit 1
 fi
 
-SECRET_KEY=$(tr -dc '[:alnum:]' < /dev/urandom | head -c 10)
+# Give execution user access to sandbox
+chown -R usr1:usr1 "$SANDBOX"
+chmod -R 700 "$SANDBOX"
 
-(
-    timeout 3s su - usr1 -c "./code.out < input.txt > output.txt"
-)
+# Execute user program
+cd "$SANDBOX"
+
+timeout 3s su -s /bin/sh - usr1 -c \
+    "cd $SANDBOX && ./code.out < input.txt > output.txt"
 
 exit_status=$?
 
-chown -R usr1:usr1 ./files
-cp ./sandbox/output.txt ./files/real_output.txt
-
-if [ $exit_status -eq 124 ]; then
-    echo "TLE" >> $verdict_path
-elif [ $exit_status -ne 0 ]; then
-    echo "RTE" >> $verdict_path
+# Copy actual output
+if [ -f "$SANDBOX/output.txt" ]; then
+    cp "$SANDBOX/output.txt" "$REAL_OUTPUT"
 else
-    if [ ! -f $output_path ]; then
-      touch $output_path
-    fi
-
-    diff --brief $output_path $expected_output_path > $compare_path
-    cat $compare_path
-
-    if [ -s $compare_path ]; then
-        echo "WA" >> $verdict_path
-    else
-        echo "AC" >> $verdict_path
-    fi
+    touch "$REAL_OUTPUT"
 fi
+
+# Determine verdict
+if [ $exit_status -eq 124 ]; then
+
+    echo "TLE" > "$VERDICT"
+
+elif [ $exit_status -ne 0 ]; then
+
+    echo "RTE" > "$VERDICT"
+
+else
+
+    diff --brief "$REAL_OUTPUT" "$EXPECTED" > "$COMPARE"
+
+    if [ -s "$COMPARE" ]; then
+        echo "WA" > "$VERDICT"
+    else
+        echo "AC" > "$VERDICT"
+    fi
+
+fi
+
+echo "VERDICT: $(cat "$VERDICT")"

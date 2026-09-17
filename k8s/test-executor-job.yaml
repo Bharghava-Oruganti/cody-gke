@@ -1,0 +1,45 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: test-cpp-executor
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 30
+
+  template:
+    spec:
+      restartPolicy: Never
+
+      containers:
+        - name: executor
+          image: asia-south1-docker.pkg.dev/cody-gke/cody-repo/cpp-executor:latest
+          imagePullPolicy: Always
+
+          command:
+            - sh
+            - -c
+            - |
+              mkdir -p /files
+
+              cat > /files/code.cpp <<'EOF'
+              #include <iostream>
+              using namespace std;
+
+              int main() {
+                  cout << "Hello GKE" << endl;
+                  return 0;
+              }
+              EOF
+
+              echo "Hello GKE" > /files/input.txt
+              echo "Hello GKE" > /files/exp_output.txt
+
+              exec sh /run.sh
+
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"

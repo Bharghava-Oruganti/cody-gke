@@ -2,8 +2,7 @@ package com.example.springweb.controllers;
 
 import com.example.springweb.models.Code;
 import com.example.springweb.models.Question;
-import com.example.springweb.services.DockerService;
-import com.example.springweb.services.FileServices;
+import com.example.springweb.services.KubernetesExecutionService;
 import com.example.springweb.services.QuestionService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -15,13 +14,10 @@ import java.util.Random;
 public class SubmitController {
 
     @Autowired
+    private KubernetesExecutionService kubernetesExecutionService;
+
+    @Autowired
     private QuestionService qs;
-
-    @Autowired
-    private DockerService dockerService;
-
-    @Autowired
-    private FileServices fileService;
 
     @PostMapping(value = "/submit")
     public Code submit(@RequestBody Code code) {
@@ -71,102 +67,48 @@ public class SubmitController {
             System.out.println("User code:");
             System.out.println(userCode);
 
+            System.out.println("Test cases:");
+            System.out.println(testCases);
+
+            System.out.println("Expected outputs:");
+            System.out.println(expectedOutputs);
+
 
             // -------------------------------------------------
-            // 4. Create files
+            // 4. Execute code using Kubernetes
             // -------------------------------------------------
 
-            System.out.println("Creating execution files...");
+            System.out.println("--------------------------------");
+            System.out.println("Starting Kubernetes execution...");
+            System.out.println("--------------------------------");
 
-            fileService.createFile(
-                    "code.cpp",
-                    userCode
-            );
-
-            fileService.createFile(
-                    "input.txt",
-                    testCases
-            );
-
-            fileService.createFile(
-                    "exp_output.txt",
+            String verdict = kubernetesExecutionService.execute(
+                    userCode,
+                    testCases,
                     expectedOutputs
             );
 
-            // Empty files which will be populated by
-            // the execution container
-
-            fileService.createFile(
-                    "real_output.txt",
-                    ""
-            );
-
-            fileService.createFile(
-                    "verdict.txt",
-                    ""
-            );
-
-            System.out.println("Execution files created successfully.");
-
 
             // -------------------------------------------------
-            // 5. Start Docker execution
-            // -------------------------------------------------
-
-            System.out.println("Starting Docker execution...");
-
-            String dockerResult = dockerService.createContainer();
-
-            System.out.println(
-                    "Docker execution result: "
-                            + dockerResult
-            );
-
-
-            // -------------------------------------------------
-            // 6. Read verdict
+            // 5. Set verdict
             // -------------------------------------------------
 
             System.out.println("--------------------------------");
-            System.out.println("Reading verdict.txt...");
-
-            String verdict = fileService.readFile(
-                    "verdict.txt"
-            );
-
-            System.out.println(
-                    "VERDICT FILE CONTENT: ["
-                            + verdict
-                            + "]"
-            );
-
+            System.out.println("KUBERNETES VERDICT: [" + verdict + "]");
             System.out.println("--------------------------------");
-
-
-            // -------------------------------------------------
-            // 7. Set verdict in response
-            // -------------------------------------------------
 
             if (verdict == null || verdict.trim().isEmpty()) {
 
-                System.out.println(
-                        "WARNING: verdict.txt is empty!"
-                );
-
-                code.setStatus(
-                        "No verdict returned"
-                );
+                code.setStatus("No verdict returned");
 
             } else {
 
-                code.setStatus(
-                        verdict.trim()
-                );
+                code.setStatus(verdict.trim());
             }
 
 
             // -------------------------------------------------
-            // 8. Return response to React
+            // 6. Return response to React
             // -------------------------------------------------
 
             System.out.println(
@@ -187,9 +129,7 @@ public class SubmitController {
 
             e.printStackTrace();
 
-            code.setStatus(
-                    "Execution error"
-            );
+            code.setStatus("Execution error");
 
             return code;
         }
