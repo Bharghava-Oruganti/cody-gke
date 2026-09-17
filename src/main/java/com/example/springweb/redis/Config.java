@@ -17,8 +17,8 @@ import java.time.Duration;
 @Configuration
 public class Config extends CachingConfigurerSupport {
 
-//    @Value(value="${spring.redis.host}")
-//    private String host;
+    @Value(value="${spring.redis.host}")
+    private String host;
 
     @Value(value = "${spring.redis.port}")
     private String port;
@@ -29,7 +29,7 @@ public class Config extends CachingConfigurerSupport {
     @Bean
     JedisConnectionFactory jedisConnectionFactory(){
         RedisStandaloneConfiguration redisStandaloneConfiguration  = new RedisStandaloneConfiguration();
-        redisStandaloneConfiguration.setHostName("redis");
+        redisStandaloneConfiguration.setHostName(host);
         redisStandaloneConfiguration.setPort(6379);
 
         JedisClientConfiguration.JedisClientConfigurationBuilder jedisClientConfig = JedisClientConfiguration.builder();

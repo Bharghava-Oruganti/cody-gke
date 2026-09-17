@@ -5,84 +5,193 @@ import com.github.dockerjava.api.command.CreateContainerResponse;
 import com.github.dockerjava.api.command.WaitContainerResultCallback;
 import com.github.dockerjava.api.model.Bind;
 import com.github.dockerjava.api.model.HostConfig;
-import com.github.dockerjava.api.model.Image;
 import com.github.dockerjava.api.model.Volume;
-import com.github.dockerjava.core.DockerClientBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.List;
+import java.util.Arrays;
 
 @Service
 public class DockerService {
 
     @Autowired
     private DockerClient dockerClient;
-   // private String local_path = "/home/claws6206/cody/backend/src/main/java/com/example/springweb/files";
-//     private String local_path = "/app/files";
-  //  private String local_path = "C:\\Users\\BHARGHAVA\\Desktop\\springweb\\src\\main\\java\\com\\example\\springweb\\files";
-    private String local_path = "/home/claws6206/cody/backend/src/main/java/com/example/springweb/files";
-    Path filePath = Paths.get(local_path, "");
 
-    private String container_path = "/files";
-    Volume volume = new Volume(container_path);
-    Volume volume2 = new Volume(local_path);
-    public String createContainer(){
-        try{
-            Path currentPath = Paths.get("").toAbsolutePath();
-            Path filePath = currentPath.resolve(local_path).normalize();
+    /*
+     * IMPORTANT:
+     *
+     * This is the path on the HOST machine that Docker Desktop
+     * can access.
+     *
+     * Do NOT use /app/files here.
+     *
+     * /app/files is only the path inside the Spring Boot container.
+     */
+    private final String hostFilesPath =
+            "C:/Users/BHARGHAVA/Desktop/springweb/files";
 
-            // Convert the path to a format that Docker understands
-            String hostPath = filePath.toString().replace("\\", "/");
-            System.out.println("Final Local Volume Bind Path is : " + hostPath);
+    /*
+     * This is the path inside the code execution container.
+     */
+    private final String containerFilesPath = "/files";
 
-            boolean imageExists = dockerClient.listImagesCmd()
+
+    public String createContainer() {
+
+        try {
+
+            System.out.println(
+                    "Host files path: " + hostFilesPath
+            );
+
+            System.out.println(
+                    "Container files path: " + containerFilesPath
+            );
+
+
+            // --------------------------------------------------
+            // 1. Check compiler image
+            // --------------------------------------------------
+
+            boolean imageExists = dockerClient
+                    .listImagesCmd()
                     .exec()
                     .stream()
-                    .flatMap(image -> image.getRepoTags() != null ?
-                            java.util.Arrays.stream(image.getRepoTags()) :
-                            java.util.stream.Stream.empty())
-                    .anyMatch(tag -> tag.equals("angryclawz/cpp_comp_image:latest"));
+                    .flatMap(image ->
+                            image.getRepoTags() != null
+                                    ? Arrays.stream(image.getRepoTags())
+                                    : java.util.stream.Stream.empty()
+                    )
+                    .anyMatch(tag ->
+                            tag.equals(
+                                    "angryclawz/cpp_comp_image:latest"
+                            )
+                    );
 
-//            List<Image> imageList = dockerClient.listImagesCmd().exec();
-//            for(Image img : imageList){
-//                System.out.println(img);
-//            }
-//            DockerClient dockerClient2 = DockerClientBuilder.getInstance().build();
-            System.out.println(imageExists);
-            if(!imageExists){
-                System.out.println("IMAGE DOESN'T EXIST ! PULLING...");
-                dockerClient.pullImageCmd("angryclawz/cpp_comp_image")
+            System.out.println(
+                    "Compiler image exists: " + imageExists
+            );
+
+
+            // --------------------------------------------------
+            // 2. Pull compiler image if necessary
+            // --------------------------------------------------
+
+            if (!imageExists) {
+
+                System.out.println(
+                        "IMAGE DOESN'T EXIST! PULLING..."
+                );
+
+                dockerClient
+                        .pullImageCmd(
+                                "angryclawz/cpp_comp_image"
+                        )
                         .withTag("latest")
                         .start()
                         .awaitCompletion();
+
+                System.out.println(
+                        "Compiler image pulled successfully."
+                );
             }
 
 
-            CreateContainerResponse container = dockerClient.createContainerCmd("angryclawz/cpp_comp_image")
-//                    .withUser("1000:1000")
-                    .withHostConfig(new HostConfig()
-                            .withNetworkMode("bridge")
-                            .withBinds(new Bind(local_path,volume)
+            // --------------------------------------------------
+            // 3. Create execution container
+            // --------------------------------------------------
 
-                    ))
+            System.out.println(
+                    "Creating execution container..."
+            );
+
+            CreateContainerResponse container =
+                    dockerClient
+                            .createContainerCmd(
+                                    "angryclawz/cpp_comp_image:latest"
+                            )
+                            .withHostConfig(
+                                    new HostConfig()
+                                            .withNetworkMode("bridge")
+                                            .withBinds(
+                                                    new Bind(
+                                                            hostFilesPath,
+                                                            new Volume(
+                                                                    containerFilesPath
+                                                            )
+                                                    )
+                                            )
+                            )
+                            .exec();
+
+
+            System.out.println(
+                    "Created container: "
+                            + container.getId()
+            );
+
+
+            // --------------------------------------------------
+            // 4. Start execution container
+            // --------------------------------------------------
+
+            System.out.println(
+                    "Starting execution container..."
+            );
+
+            dockerClient
+                    .startContainerCmd(container.getId())
                     .exec();
 
-            // starting of container with data
-            dockerClient.startContainerCmd(container.getId())
-                    .exec();
-            // wait
-            WaitContainerResultCallback resultCallback = new WaitContainerResultCallback();
-            dockerClient.waitContainerCmd(container.getId()).exec(resultCallback);
+
+            // --------------------------------------------------
+            // 5. Wait for execution to finish
+            // --------------------------------------------------
+
+            System.out.println(
+                    "Waiting for execution container..."
+            );
+
+            WaitContainerResultCallback resultCallback =
+                    new WaitContainerResultCallback();
+
+            dockerClient
+                    .waitContainerCmd(container.getId())
+                    .exec(resultCallback);
+
             resultCallback.awaitCompletion();
 
-            return "Success";
-        }catch(Exception e){
-            e.printStackTrace();
-        }
 
-        return "Failure in container creation";
+            System.out.println(
+                    "Container execution completed."
+            );
+
+
+            // --------------------------------------------------
+            // 6. Remove execution container
+            // --------------------------------------------------
+
+            dockerClient
+                    .removeContainerCmd(container.getId())
+                    .withForce(true)
+                    .exec();
+
+            System.out.println(
+                    "Execution container removed."
+            );
+
+            return "Success";
+
+
+        } catch (Exception e) {
+
+            System.out.println(
+                    "ERROR WHILE CREATING/EXECUTING CONTAINER"
+            );
+
+            e.printStackTrace();
+
+            return "Failure in container creation";
+        }
     }
 }

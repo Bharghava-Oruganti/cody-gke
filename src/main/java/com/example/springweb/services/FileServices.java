@@ -13,37 +13,106 @@ import java.nio.file.StandardCopyOption;
 import java.util.Scanner;
 
 @Service
-public class FileServices{
-    //  private final String filesPath = "src/main/java/com/example/springweb/files/"; // Relative path from the working directory
-//    private final String filesPath = "C:\\Users\\BHARGHAVA\\Desktop\\springweb\\src\\main\\java\\com\\example\\springweb\\files";
-    private final String filesPath = "./files/";
+public class FileServices {
+
+    // This is the path INSIDE the Spring Boot Docker container.
+    // docker-compose.yml mounts:
+    //
+    // ./files:/app/files
+    //
+    // Therefore the application should use /app/files.
+    private final String filesPath = "/app/files/";
+
+    /**
+     * Creates a file atomically using a temporary file first.
+     */
     public void createFile(String fileName, String content) throws IOException {
-        Path tempFilePath = Paths.get(filesPath, fileName + ".tmp");
-        Path finalFilePath = Paths.get(filesPath, fileName);
 
-        Files.createDirectories(tempFilePath.getParent()); // Ensure the directory exists
+        Path directory = Paths.get(filesPath);
 
+        // Make sure /app/files exists
+        Files.createDirectories(directory);
+
+        Path tempFilePath = directory.resolve(fileName + ".tmp");
+        Path finalFilePath = directory.resolve(fileName);
+
+        // Write content to temporary file
         try (FileWriter writer = new FileWriter(tempFilePath.toFile())) {
             writer.write(content);
         }
 
-        // Rename the temp file to final filename
-        Files.move(tempFilePath, finalFilePath, StandardCopyOption.REPLACE_EXISTING);
+        // Replace old file with new file
+        Files.move(
+                tempFilePath,
+                finalFilePath,
+                StandardCopyOption.REPLACE_EXISTING
+        );
+
+        System.out.println(
+                "Created file: " + finalFilePath.toAbsolutePath()
+        );
     }
 
+    /**
+     * Returns a File object for the requested file.
+     */
     public File getFile(String fileName) {
-        return new File(filesPath + fileName);
+
+        return Paths
+                .get(filesPath, fileName)
+                .toFile();
     }
 
-    public String readFile(String fileName) throws FileNotFoundException {
-        File myObj = new File(filesPath+"verdict.txt");
-        Scanner myReader = new Scanner(myObj);
-        String status="";
-        while (myReader.hasNextLine()) {
-             status = myReader.nextLine();
+    /**
+     * Reads the requested file.
+     */
+    public String readFile(String fileName)
+            throws FileNotFoundException {
+
+        File file = getFile(fileName);
+
+        System.out.println(
+                "Reading file: "
+                        + file.getAbsolutePath()
+        );
+
+        System.out.println(
+                "File exists: "
+                        + file.exists()
+        );
+
+        System.out.println(
+                "File size: "
+                        + file.length()
+        );
+
+        if (!file.exists()) {
+            throw new FileNotFoundException(
+                    "File not found: "
+                            + file.getAbsolutePath()
+            );
         }
-        myReader.close();
-        System.out.println(status);
-        return status;
+
+        StringBuilder content = new StringBuilder();
+
+        try (Scanner scanner = new Scanner(file)) {
+
+            while (scanner.hasNextLine()) {
+
+                if (!content.isEmpty()) {
+                    content.append("\n");
+                }
+
+                content.append(scanner.nextLine());
+            }
+        }
+
+        String result = content.toString();
+
+        System.out.println(
+                "File content: [" + result + "]"
+        );
+
+        return result;
     }
 }

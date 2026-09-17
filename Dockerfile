@@ -15,5 +15,8 @@ COPY --from=build /app/target/*.jar app.jar
 #COPY --from=build /app/src/main/java/com/example/springweb/files /files
 
 RUN apk add --no-cache docker-cli
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/actuator/health || exit 1
 # Run the app
 ENTRYPOINT ["java", "-jar", "app.jar"]
